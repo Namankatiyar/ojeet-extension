@@ -1,0 +1,98 @@
+{
+  "manifest_version": 3,
+  "name": "OJEET - YouTube Lecture Notes",
+  "description": "Take screenshots, save timestamps, and add notes while watching YouTube lectures with fast hotkeys",
+  "version": "1.0.0",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "unlimitedStorage",
+    "offscreen",
+    "webNavigation"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "https://www.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtube.com/*",
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content/video-agent.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content/ui-host.js"
+      ],
+      "css": [
+        "src/content/ui-host.css"
+      ],
+      "all_frames": false,
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "OJEET Notes"
+  },
+  "commands": {
+    "take-screenshot": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "Take a screenshot of the video"
+    },
+    "save-timestamp": {
+      "suggested_key": {
+        "default": "Alt+T",
+        "mac": "Alt+T"
+      },
+      "description": "Save current timestamp"
+    },
+    "open-note-editor": {
+      "suggested_key": {
+        "default": "Alt+N",
+        "mac": "Alt+N"
+      },
+      "description": "Open note editor with screenshot"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/styles/theme.css",
+        "src/content/ui-host.css",
+        "src/dashboard/dashboard.html",
+        "src/dashboard/dashboard.css",
+        "src/dashboard/dashboard.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}
