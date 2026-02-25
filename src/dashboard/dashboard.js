@@ -115,7 +115,12 @@ function setupEventListeners() {
     viewerClose.addEventListener('click', closeViewer);
     viewerDownload.addEventListener('click', () => {
         if (viewerImages[viewerIndex]) {
-            downloadDataUrl(viewerImages[viewerIndex].src, 'ojeet-screenshot.webp');
+            const imgInfo = viewerImages[viewerIndex];
+            if (imgInfo.imageId) {
+                downloadScreenshot(imgInfo.imageId);
+            } else {
+                downloadDataUrl(imgInfo.src, 'ojeet-screenshot.webp');
+            }
         }
     });
     viewerPrev.addEventListener('click', () => navigateViewer(-1));
@@ -573,7 +578,31 @@ async function deleteNote(uuid) {
 function downloadScreenshot(imageId) {
     const screenshot = allScreenshots[imageId];
     if (!screenshot) return;
-    downloadDataUrl(screenshot.dataUrl, `ojeet-screenshot-${imageId}.webp`);
+
+    let filename = `ojeet-screenshot-${imageId}.webp`;
+    const note = allNotes.find(n => n.imageId === imageId);
+
+    if (note) {
+        const video = allVideos[note.videoId];
+        const videoTitle = video ? video.title : 'Video';
+
+        const h = Math.floor(note.timestampSeconds / 3600);
+        const m = Math.floor((note.timestampSeconds % 3600) / 60);
+        const s = Math.floor(note.timestampSeconds % 60);
+
+        let timeStr = '';
+        if (h > 0) timeStr += `${h}h`;
+        if (m > 0 || h > 0) timeStr += `${m}m`;
+        timeStr += `${s}s`;
+
+        let cleanTitle = videoTitle.replace(/[\\/:*?"<>|]/g, '').trim();
+        cleanTitle = cleanTitle.replace(/\s+/g, '_');
+        if (!cleanTitle) cleanTitle = 'Untitled';
+
+        filename = `${cleanTitle}-[${timeStr}].webp`;
+    }
+
+    downloadDataUrl(screenshot.dataUrl, filename);
 }
 
 /**

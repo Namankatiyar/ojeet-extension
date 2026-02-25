@@ -16,6 +16,8 @@ Last Updated: 2026-02-25
 - ADR-007: Image Processing via Offscreen Document (MV3)
 - ADR-008: Typed Messaging for Cross-Context Communication
 - ADR-009: AI-Optimized Workflow via Mirror Summary Directory
+- ADR-010: Fluid Responsive Grid and Fixed Aspect Ratio Policy
+- ADR-011: Context-Aware Asset Naming Convention
 
 ---
 
@@ -295,6 +297,62 @@ Maintain a `.ai_workflow/src` directory containing architectural summaries (.md 
 
 ### Related Modules
 - Entire repository via `.ai_workflow/`
+
+---
+
+## ADR-010: Fluid Responsive Grid and Fixed Aspect Ratio Policy
+
+Status: Active  
+Date: 2026-02-25  
+
+### Context
+The Dashboard's "All Notes" view must adapt to varying screen widths without relying on fragile breakpoints, while maintaining a predictable visual structure during browser zoom.
+
+### Decision
+Implement a fully fluid CSS Grid using `repeat(auto-fit, minmax(480px, 1fr))` for note cards and enforce a fixed `aspect-ratio: 16 / 9` on all screenshot elements.
+
+### Rationale
+- `auto-fit` allows the grid to naturally expand and fill space without media queries.
+- `minmax(480px, 1fr)` ensures a maximum of 2 cards on standard 1366px displays, as per design requirements.
+- Fixed aspect ratios prevent layout shift (CLS) and ensure that text content below images remains vertically stable during resizing.
+
+### Tradeoffs
+- Rigidity vs Flexibility: Images with non-standard ratios (if any) will be cropped via `object-fit: cover`.
+
+### Consequences
+- Predictable, premium layout across all resolutions.
+- Cards maintain organic height based on content while images remain uniform.
+
+### Related Modules
+- `src/dashboard/dashboard.css`
+
+---
+
+## ADR-011: Context-Aware Asset Naming Convention
+
+Status: Active  
+Date: 2026-02-25  
+
+### Context
+Generic filenames (e.g., `ojeet-screenshot-123.webp`) make it difficult for users to manage their exported learning materials outside the extension.
+
+### Decision
+Automatically generate filenames using the pattern `VideoName-[timestamp].webp` for all manual and bulk downloads.
+
+### Rationale
+- Improves searchability and organization for the user's local filesystem.
+- Leverages existing metadata (video titles and timestamps) to add immediate value.
+- Ensures cross-platform compatibility through aggressive sanitization of special characters.
+
+### Tradeoffs
+- Filename Length: Very long video titles can result in long filenames (mitigated by sanitization/truncation logic).
+
+### Consequences
+- Professional-grade asset management.
+- Dependency on metadata availability (fallback to "Video" or "Untitled").
+
+### Related Modules
+- `src/dashboard/dashboard.js` (downloadScreenshot function)
 
 ---
 

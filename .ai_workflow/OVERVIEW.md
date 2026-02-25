@@ -61,8 +61,11 @@ The service worker is decomposed into focused modules imported by the main entry
 *   **Role:** Full-page application for browsing and managing all saved content.
 *   **Features:**
     *   **Views:** "All Notes", "By Video" (grouped), and "Screenshots" (gallery).
+    *   **Responsive Fluid Grid:** Utilizes `auto-fit` with `minmax` to create a breakpoint-less layout (max 2 columns on 1366px displays).
+    *   **Visual Consistency:** Enforces a fixed **16:9 aspect ratio** for all screenshots to maintain UI stability during resizing and zoom.
     *   **Search:** Real-time filtering by note text or video title.
-    *   **Export:** Backs up data to a JSON file.
+    *   **Export:** Backs up data to a JSON file or ZIP archive with video-level folder grouping.
+    *   **Smart Download:** Screenshots are downloaded with context-aware filenames: `VideoName-[timestamp].webp`.
     *   **Image Viewer:** Modal with zoom and rotate controls for inspecting screenshots.
 
 ### 2.6 Shared Libraries (`src/lib/`)

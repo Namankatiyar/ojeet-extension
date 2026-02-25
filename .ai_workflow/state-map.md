@@ -202,6 +202,7 @@ permissions | popup | popup | popup | No (Browser API) | Medium
 - Every `note.imageId` must have a corresponding entry in the `screenshots` IndexedDB.
 - `zoomLevel` must be within constraints defined in `config.js` (e.g., 100% - 500%).
 - `rotation` values must be multiples of 90.
+- All dashboard images must adhere to a **16:9 aspect-ratio** for layout stability.
 
 ---
 

@@ -1,6 +1,44 @@
 # Changelog
 
-## 2026-02-25
+## [1.1.0] – 2026-02-25
+
+### AI Maintenance Run
+Implemented Dashboard UI improvements and synchronized architectural documentation.
+
+### Feature-Level Changes
+- **Fluid Layout:** Replaced breakpoint-based grid with a fully fluid CSS Grid layout.
+- **Aspect Ratio Policy:** Enforced 16:9 aspect ratio for all screenshots to ensure visual stability.
+- **Smart Downloads:** Implemented context-aware filename generation (`VideoName-[timestamp].webp`) for screenshot downloads.
+
+### Architectural Changes
+- ADR-010: Fluid Responsive Grid and Fixed Aspect Ratio Policy.
+- ADR-011: Context-Aware Asset Naming Convention.
+
+### State Changes
+- Modified: Added 16:9 aspect-ratio as a dashboard state invariant.
+
+### Dependency Graph Changes
+- None.
+
+### Suggested ADR Entries
+- ADR-010: Proposed and Activated.
+- ADR-011: Proposed and Activated.
+
+### Risk Notes
+- Performance: Monitored grid rendering with high card counts.
+
+
+## [1.0.1] – 2026-02-25
+
+### AI Maintenance Run
+Synced architectural documentation with implementation.
+
+### Documentation Changes
+- Added: `.ai_workflow/dependency-map.md`
+- Added: `.ai_workflow/state-map.md`
+- Added: `.ai_workflow/architecture-decisions.md`
+
+## [1.0.0] – 2026-02-25
 
 ### Refactored OJEET Extension Base Architecture
 
