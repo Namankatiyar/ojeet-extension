@@ -21,7 +21,8 @@
     "https://www.googleapis.com/*"
   ],
   "background": {
-    "service_worker": "src/background/service-worker.js"
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
   },
   "content_scripts": [
     {
@@ -85,6 +86,7 @@
     {
       "resources": [
         "src/styles/theme.css",
+        "src/styles/components.css",
         "src/content/ui-host.css",
         "src/dashboard/dashboard.html",
         "src/dashboard/dashboard.css",

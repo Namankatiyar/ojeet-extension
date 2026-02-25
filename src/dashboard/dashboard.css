@@ -1,5 +1,6 @@
 /* Dashboard Styles - Using Ojeet Theme System */
 @import url('../styles/theme.css');
+@import url('../styles/components.css');
 
 * {
     margin: 0;
