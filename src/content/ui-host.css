@@ -1,0 +1,16 @@
+/* UI Host Styles - Loaded by manifest, but main styles are in Shadow DOM */
+/* This file exists for web_accessible_resources requirement */
+
+/* Reset styles to prevent page CSS from affecting our overlay */
+#ojeet-overlay-root,
+#ojeet-toast-container {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+}
+
+#ojeet-overlay-root *,
+#ojeet-toast-container * {
+  pointer-events: auto;
+}
