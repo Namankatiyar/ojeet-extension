@@ -130,3 +130,5 @@ The service worker is decomposed into focused modules imported by the main entry
 *   **Style Isolation:** The UI is strictly isolated in Shadow DOM with `all: initial` to ensure it looks consistent on any website.
 *   **Event Isolation:** Aggressive `stopPropagation` is used on the note input to preventing the host page from reacting to keypresses (critical for YouTube).
 *   **Content Script Module Limitation:** Content scripts cannot use ES module imports in MV3 without a build step. The provider classes are inlined within the video-agent IIFE. Standalone provider files exist in `src/content/providers/` for reference and documentation.
+
+

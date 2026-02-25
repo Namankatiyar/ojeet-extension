@@ -2,22 +2,34 @@
 
 ## Technical Details
 - **Role:** Main logic for the notes dashboard.
-- **Refactoring:** Converted to an **ES Module**. Now imports all utility and storage logic from shared libraries (`ui-components.js`, `storage.js`).
 - **Features:**
   - **Dynamic Rendering:** Three views (All Notes, By Video, Screenshots).
-  - **Image Processing:** Zoom, Rotate, and Fullscreen modal for screenshots.
-  - **Data Management:** Uses `storage.js` for atomic deletes and exports.
+  - **Image Processing:** Zoom, Rotate, Fullscreen modal, and **Download** for screenshots.
+  - **Data Management:** Atomic deletes, clear-all, and image downloads.
+  - **Zip Export:** Uses **JSZip** to export all notes as JSON + screenshots grouped into folders named after their source video.
   - **Real-time Search:** Filters both note text and video titles.
 
 ## Code Snippets
 
-### Modular Imports
+### Download Button in Note Card
 ```javascript
-import { createNoteCardHTML } from '../lib/ui-components.js';
-import { getAllNotes, deleteNote } from '../lib/storage.js';
+function createNoteCard(note, compact = false) {
+    // ...
+    ${hasScreenshot ? `<button class="download-btn" title="Download Screenshot" data-image-id="${note.imageId}">...</button>` : ''}
+    // ...
+}
+```
 
-async function loadData() {
-  allNotes = await getAllNotes();
-  // ... update local state maps ...
+### Zip Export
+```javascript
+async function handleExport() {
+    const zip = new JSZip();
+    zip.file('notes.json', JSON.stringify(jsonData, null, 2));
+    for (const note of notesWithScreenshots) {
+        const folderName = sanitizeFilename(video?.title || 'Ungrouped');
+        zip.folder(folderName).file(fileName, base64, { base64: true });
+    }
+    const content = await zip.generateAsync({ type: 'blob' });
+    // trigger download...
 }
 ```

@@ -9,18 +9,19 @@ const emptyState = document.getElementById('emptyState');
 const statsDisplay = document.getElementById('statsDisplay');
 const exportBtn = document.getElementById('exportBtn');
 const clearAllBtn = document.getElementById('clearAllBtn');
-const screenshotModal = document.getElementById('screenshotModal');
-const modalImage = document.getElementById('modalImage');
-const modalImageContainer = document.getElementById('modalImageContainer');
-const modalClose = document.getElementById('modalClose');
-const zoomInBtn = document.getElementById('zoomInBtn');
-const zoomOutBtn = document.getElementById('zoomOutBtn');
-const rotateBtn = document.getElementById('rotateBtn');
-const zoomLevelDisplay = document.getElementById('zoomLevel');
 const confirmOverlay = document.getElementById('confirmOverlay');
 const confirmMessage = document.getElementById('confirmMessage');
 const confirmCancel = document.getElementById('confirmCancel');
 const confirmAction = document.getElementById('confirmAction');
+
+// Viewer DOM
+const viewerOverlay = document.getElementById('viewerOverlay');
+const viewerCanvas = document.getElementById('viewerCanvas');
+const viewerImage = document.getElementById('viewerImage');
+const viewerClose = document.getElementById('viewerClose');
+const viewerDownload = document.getElementById('viewerDownload');
+const viewerPrev = document.getElementById('viewerPrev');
+const viewerNext = document.getElementById('viewerNext');
 
 // State
 let allNotes = [];
@@ -29,11 +30,19 @@ let allScreenshots = {};
 let currentView = 'all';
 let currentSearch = '';
 let confirmCallback = null;
-let currentZoom = 1;
-let currentRotation = 0;
-const ZOOM_STEP = 0.25;
-const MIN_ZOOM = 0.25;
-const MAX_ZOOM = 4;
+
+// Viewer state
+let viewerImages = [];   // [{src, imageId}]
+let viewerIndex = -1;
+let vScale = 1;
+let vTx = 0, vTy = 0;
+let vFitScale = 1;
+let isPanning = false;
+let panStartX = 0, panStartY = 0;
+let panStartTx = 0, panStartTy = 0;
+const V_ZOOM_FACTOR = 1.15;
+const V_MIN_SCALE = 0.1;
+const V_MAX_SCALE = 6;
 
 /**
  * Initialize the dashboard
@@ -95,36 +104,6 @@ function setupEventListeners() {
     // Clear All
     clearAllBtn.addEventListener('click', handleClearAll);
 
-    // Modal close
-    modalClose.addEventListener('click', closeModal);
-    screenshotModal.addEventListener('click', (e) => {
-        if (e.target === screenshotModal) closeModal();
-    });
-
-    // Zoom controls
-    zoomInBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        zoomIn();
-    });
-    zoomOutBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        zoomOut();
-    });
-    rotateBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        rotateImage();
-    });
-
-    // Mouse wheel zoom in modal
-    modalImageContainer.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        if (e.deltaY < 0) {
-            zoomIn();
-        } else {
-            zoomOut();
-        }
-    });
-
     // Confirm dialog
     confirmCancel.addEventListener('click', closeConfirm);
     confirmAction.addEventListener('click', () => {
@@ -132,27 +111,88 @@ function setupEventListeners() {
         closeConfirm();
     });
 
+    // --- Image Viewer events ---
+    viewerClose.addEventListener('click', closeViewer);
+    viewerDownload.addEventListener('click', () => {
+        if (viewerImages[viewerIndex]) {
+            downloadDataUrl(viewerImages[viewerIndex].src, 'ojeet-screenshot.webp');
+        }
+    });
+    viewerPrev.addEventListener('click', () => navigateViewer(-1));
+    viewerNext.addEventListener('click', () => navigateViewer(1));
+
+    // Scroll-wheel zoom (cursor-focused)
+    viewerCanvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = viewerCanvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const direction = e.deltaY < 0 ? 1 : -1;
+        const factor = direction > 0 ? V_ZOOM_FACTOR : (1 / V_ZOOM_FACTOR);
+        const newScale = Math.min(V_MAX_SCALE, Math.max(V_MIN_SCALE, vScale * factor));
+        // Adjust translate so point under cursor stays fixed
+        vTx = mx - (mx - vTx) * (newScale / vScale);
+        vTy = my - (my - vTy) * (newScale / vScale);
+        vScale = newScale;
+        updateCursorState();
+        applyViewerTransform();
+    }, { passive: false });
+
+    // Panning
+    viewerCanvas.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isPanning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panStartTx = vTx;
+        panStartTy = vTy;
+        viewerOverlay.classList.add('panning');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
+        vTx = panStartTx + (e.clientX - panStartX);
+        vTy = panStartTy + (e.clientY - panStartY);
+        applyViewerTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (!isPanning) return;
+        isPanning = false;
+        viewerOverlay.classList.remove('panning');
+    });
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            closeModal();
+            if (viewerOverlay.classList.contains('visible')) {
+                closeViewer();
+            }
             closeConfirm();
         }
-        // Zoom shortcuts when modal is open
-        if (screenshotModal.classList.contains('visible')) {
-            if (e.key === '+' || e.key === '=') {
+        if (viewerOverlay.classList.contains('visible')) {
+            if (e.key === 'ArrowLeft') {
                 e.preventDefault();
-                zoomIn();
-            } else if (e.key === '-') {
+                navigateViewer(-1);
+            } else if (e.key === 'ArrowRight') {
                 e.preventDefault();
-                zoomOut();
-            } else if (e.key === '0') {
-                e.preventDefault();
-                resetZoom();
-            } else if (e.key === 'r' || e.key === 'R') {
-                e.preventDefault();
-                rotateImage();
+                navigateViewer(1);
             }
+        }
+    });
+
+    // Recalculate fit on resize
+    window.addEventListener('resize', () => {
+        if (viewerOverlay.classList.contains('visible') && viewerImage.naturalWidth) {
+            const oldFit = vFitScale;
+            computeFitScale();
+            // Maintain relative zoom: if user was at fit level, stay at fit
+            if (Math.abs(vScale - oldFit) < 0.001) {
+                vScale = vFitScale;
+            }
+            centerImage();
+            applyViewerTransform();
+            updateCursorState();
         }
     });
 }
@@ -300,12 +340,21 @@ function renderScreenshots(notes) {
         return `
           <div class="screenshot-card" data-image-id="${note.imageId}" data-uuid="${note.uuid}" data-video-id="${note.videoId}" data-time="${note.timestampSeconds}">
             <img src="${screenshot.dataUrl}" alt="Screenshot">
-            <button class="screenshot-delete-btn" data-uuid="${note.uuid}" title="Delete">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-              </svg>
-            </button>
+            <div class="screenshot-top-actions">
+              <button class="screenshot-download-btn" data-image-id="${note.imageId}" title="Download">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </button>
+              <button class="screenshot-delete-btn" data-uuid="${note.uuid}" title="Delete">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+              </button>
+            </div>
             <div class="screenshot-overlay">
               <button class="timestamp" data-video-id="${note.videoId}" data-time="${note.timestampSeconds}">${note.timestampFormatted || formatTime(note.timestampSeconds)}</button>
               <span class="video-name">${escapeHtml(truncate(video.title || 'Video', 20))}</span>
@@ -317,15 +366,24 @@ function renderScreenshots(notes) {
   `;
 
     // Attach click listeners to screenshot images (not overlays)
-    document.querySelectorAll('.screenshot-card img').forEach(img => {
-        img.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const card = img.closest('.screenshot-card');
-            const imageId = card.dataset.imageId;
-            if (allScreenshots[imageId]) {
-                showModal(allScreenshots[imageId].dataUrl);
-            }
-        });
+    // Build viewer image list from current gallery order
+    const galleryCards = document.querySelectorAll('.screenshot-card');
+    viewerImages = [];
+    galleryCards.forEach(card => {
+        const imageId = card.dataset.imageId;
+        if (allScreenshots[imageId]) {
+            viewerImages.push({ src: allScreenshots[imageId].dataUrl, imageId });
+        }
+    });
+
+    galleryCards.forEach((card, idx) => {
+        const img = card.querySelector('img');
+        if (img) {
+            img.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openViewer(idx);
+            });
+        }
     });
 
     // Attach click listeners to timestamps in screenshot gallery
@@ -344,6 +402,14 @@ function renderScreenshots(notes) {
             e.stopPropagation();
             const uuid = btn.dataset.uuid;
             showConfirm('Delete this screenshot?', () => deleteNote(uuid));
+        });
+    });
+
+    // Attach click listeners to download buttons in screenshot gallery
+    document.querySelectorAll('.screenshot-download-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadScreenshot(btn.dataset.imageId);
         });
     });
 }
@@ -372,6 +438,13 @@ function createNoteCard(note, compact = false) {
               <line x1="10" y1="14" x2="21" y2="3"></line>
             </svg>
           </button>
+          ${hasScreenshot ? `<button class="download-btn" title="Download Screenshot" data-image-id="${note.imageId}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>` : ''}
           <button class="delete-btn" title="Delete Note" data-uuid="${note.uuid}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"/>
@@ -411,6 +484,14 @@ function attachNoteCardListeners() {
         });
     });
 
+    // Download buttons
+    document.querySelectorAll('.download-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadScreenshot(btn.dataset.imageId);
+        });
+    });
+
     // Delete buttons
     document.querySelectorAll('.delete-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -420,11 +501,17 @@ function attachNoteCardListeners() {
         });
     });
 
-    // Screenshot clicks
-    document.querySelectorAll('.note-screenshot').forEach(img => {
+    // Screenshot clicks — build viewer list from all visible note screenshots
+    const noteImages = document.querySelectorAll('.note-screenshot');
+    noteImages.forEach((img, idx) => {
         img.addEventListener('click', (e) => {
             e.stopPropagation();
-            showModal(img.src);
+            // Build viewerImages from all note screenshots on screen
+            viewerImages = [];
+            document.querySelectorAll('.note-screenshot').forEach(nImg => {
+                viewerImages.push({ src: nImg.src, imageId: nImg.dataset.imageId || '' });
+            });
+            openViewer(idx);
         });
     });
 }
@@ -481,29 +568,85 @@ async function deleteNote(uuid) {
 }
 
 /**
- * Handle export
+ * Download a single screenshot by its image ID
+ */
+function downloadScreenshot(imageId) {
+    const screenshot = allScreenshots[imageId];
+    if (!screenshot) return;
+    downloadDataUrl(screenshot.dataUrl, `ojeet-screenshot-${imageId}.webp`);
+}
+
+/**
+ * Trigger a download from a data URL
+ */
+function downloadDataUrl(dataUrl, filename) {
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    a.click();
+}
+
+/**
+ * Sanitize a string for use as a folder/file name
+ */
+function sanitizeFilename(name) {
+    return name.replace(/[\\/:*?"<>|]/g, '_').replace(/_{2,}/g, '_').trim() || 'Untitled';
+}
+
+/**
+ * Handle export — produces a .zip with images grouped by video folder
  */
 async function handleExport() {
     try {
-        const data = {
+        if (typeof JSZip === 'undefined') {
+            showToast('Export library not loaded');
+            return;
+        }
+
+        showToast('Preparing export…');
+
+        const zip = new JSZip();
+
+        // Add notes.json at root
+        const jsonData = {
             version: 1,
             exportedAt: Date.now(),
             videos: Object.values(allVideos),
             notes: allNotes
         };
+        zip.file('notes.json', JSON.stringify(jsonData, null, 2));
 
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
+        // Group notes with screenshots by video
+        const notesWithScreenshots = allNotes.filter(n => n.imageId && allScreenshots[n.imageId]);
+
+        for (const note of notesWithScreenshots) {
+            const video = allVideos[note.videoId];
+            const folderName = sanitizeFilename(video?.title || 'Ungrouped');
+            const timestamp = note.timestampFormatted || formatTime(note.timestampSeconds);
+            const safeTimestamp = timestamp.replace(/:/g, '_');
+            const fileName = `screenshot-${safeTimestamp}.webp`;
+
+            const screenshot = allScreenshots[note.imageId];
+            // Convert data URL to binary
+            const base64 = screenshot.dataUrl.split(',')[1];
+            if (base64) {
+                zip.folder(folderName).file(fileName, base64, { base64: true });
+            }
+        }
+
+        const content = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(content);
 
         const a = document.createElement('a');
         a.href = url;
-        a.download = `ojeet-notes-${formatDateForFilename(new Date())}.json`;
+        a.download = `ojeet-export-${formatDateForFilename(new Date())}.zip`;
         a.click();
 
         URL.revokeObjectURL(url);
-        showToast('Notes exported!');
+        showToast('Export complete!');
     } catch (error) {
         console.error('Export failed:', error);
+        showToast('Export failed');
     }
 }
 
@@ -526,68 +669,112 @@ function handleClearAll() {
     });
 }
 
+// ─── Image Viewer ───────────────────────────────────────────
+
 /**
- * Show screenshot modal
+ * Open the image viewer at the given index in viewerImages
  */
-function showModal(src) {
-    modalImage.src = src;
-    resetZoom();
-    currentRotation = 0;
-    screenshotModal.classList.add('visible');
+function openViewer(index) {
+    if (!viewerImages.length) return;
+    viewerIndex = index;
+    // Show/hide nav arrows
+    const multi = viewerImages.length > 1;
+    viewerPrev.classList.toggle('hidden', !multi);
+    viewerNext.classList.toggle('hidden', !multi);
+    // Show overlay first so canvas has layout dimensions for fit-scale
+    viewerOverlay.classList.add('visible');
+    loadViewerImage();
 }
 
 /**
- * Close modal
+ * Close the viewer
  */
-function closeModal() {
-    screenshotModal.classList.remove('visible');
-    modalImage.src = '';
-    resetZoom();
-    currentRotation = 0;
+function closeViewer() {
+    viewerOverlay.classList.remove('visible');
+    viewerOverlay.classList.remove('pannable', 'panning');
+    viewerImage.src = '';
+    isPanning = false;
 }
 
 /**
- * Zoom in
+ * Navigate to prev/next image
  */
-function zoomIn() {
-    if (currentZoom < MAX_ZOOM) {
-        currentZoom = Math.min(currentZoom + ZOOM_STEP, MAX_ZOOM);
-        applyZoom();
+function navigateViewer(delta) {
+    if (viewerImages.length <= 1) return;
+    viewerIndex = (viewerIndex + delta + viewerImages.length) % viewerImages.length;
+    loadViewerImage();
+}
+
+/**
+ * Load the current viewer image, compute fit, center
+ */
+function loadViewerImage() {
+    const entry = viewerImages[viewerIndex];
+    if (!entry) return;
+    viewerImage.src = entry.src;
+    // Reset transform immediately
+    vScale = 1; vTx = 0; vTy = 0;
+    viewerImage.style.transform = '';
+
+    // Once image dimensions available, compute fit
+    if (viewerImage.naturalWidth) {
+        onImageReady();
+    } else {
+        viewerImage.onload = onImageReady;
     }
 }
 
+function onImageReady() {
+    viewerImage.onload = null;
+    computeFitScale();
+    vScale = vFitScale;
+    centerImage();
+    applyViewerTransform();
+    updateCursorState();
+}
+
 /**
- * Zoom out
+ * Compute the scale that fits the image entirely within the viewport
  */
-function zoomOut() {
-    if (currentZoom > MIN_ZOOM) {
-        currentZoom = Math.max(currentZoom - ZOOM_STEP, MIN_ZOOM);
-        applyZoom();
+function computeFitScale() {
+    const vw = viewerCanvas.clientWidth;
+    const vh = viewerCanvas.clientHeight;
+    const iw = viewerImage.naturalWidth;
+    const ih = viewerImage.naturalHeight;
+    if (!iw || !ih) { vFitScale = 1; return; }
+    vFitScale = Math.min(vw / iw, vh / ih);
+}
+
+/**
+ * Center the image within the canvas at the current scale
+ */
+function centerImage() {
+    const vw = viewerCanvas.clientWidth;
+    const vh = viewerCanvas.clientHeight;
+    const iw = viewerImage.naturalWidth * vScale;
+    const ih = viewerImage.naturalHeight * vScale;
+    vTx = (vw - iw) / 2;
+    vTy = (vh - ih) / 2;
+}
+
+/**
+ * Apply the current transform
+ */
+function applyViewerTransform() {
+    viewerImage.style.transform = `translate(${vTx}px, ${vTy}px) scale(${vScale})`;
+}
+
+/**
+ * Update cursor class based on zoom level
+ */
+function updateCursorState() {
+    // Show grab cursor when image is zoomed in or out from fit (i.e. panning makes sense)
+    const scaled = Math.abs(vScale - vFitScale) > 0.001;
+    if (scaled) {
+        viewerOverlay.classList.add('pannable');
+    } else {
+        viewerOverlay.classList.remove('pannable');
     }
-}
-
-/**
- * Reset zoom to 100%
- */
-function resetZoom() {
-    currentZoom = 1;
-    applyZoom();
-}
-
-/**
- * Apply current zoom level
- */
-function applyZoom() {
-    modalImage.style.transform = `scale(${currentZoom}) rotate(${currentRotation}deg)`;
-    zoomLevelDisplay.textContent = `${Math.round(currentZoom * 100)}%`;
-}
-
-/**
- * Rotate image 90 degrees clockwise
- */
-function rotateImage() {
-    currentRotation = (currentRotation + 90) % 360;
-    applyZoom();
 }
 
 /**

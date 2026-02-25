@@ -107,36 +107,35 @@
         </main>
     </div>
 
-    <!-- Screenshot Modal -->
-    <div class="modal-overlay" id="screenshotModal">
-        <div class="modal-content">
-            <div class="modal-toolbar">
-                <button class="modal-tool-btn" id="zoomOutBtn" title="Zoom Out">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        <line x1="8" y1="11" x2="14" y2="11" />
-                    </svg>
-                </button>
-                <span class="zoom-level" id="zoomLevel">100%</span>
-                <button class="modal-tool-btn" id="zoomInBtn" title="Zoom In">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                        <line x1="11" y1="8" x2="11" y2="14" />
-                        <line x1="8" y1="11" x2="14" y2="11" />
-                    </svg>
-                </button>
-                <button class="modal-tool-btn" id="rotateBtn" title="Rotate 90°">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-                    </svg>
-                </button>
-                <button class="modal-close" id="modalClose">&times;</button>
-            </div>
-            <div class="modal-image-container" id="modalImageContainer">
-                <img id="modalImage" src="" alt="Screenshot">
-            </div>
+    <!-- Image Viewer Overlay -->
+    <div class="viewer-overlay" id="viewerOverlay">
+        <div class="viewer-controls">
+            <button class="viewer-btn" id="viewerDownload" title="Download">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+            </button>
+            <button class="viewer-btn" id="viewerClose" title="Close">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+        <button class="viewer-nav viewer-nav-prev" id="viewerPrev">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+            </svg>
+        </button>
+        <button class="viewer-nav viewer-nav-next" id="viewerNext">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 6 15 12 9 18" />
+            </svg>
+        </button>
+        <div class="viewer-canvas" id="viewerCanvas">
+            <img id="viewerImage" src="" alt="Screenshot" draggable="false">
         </div>
     </div>
 
@@ -151,6 +150,7 @@
         </div>
     </div>
 
+    <script src="../lib/jszip.min.js"></script>
     <script src="dashboard.js"></script>
 </body>
 
