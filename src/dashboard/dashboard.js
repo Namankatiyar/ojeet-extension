@@ -305,6 +305,11 @@ function renderByVideo(notes) {
                 <h3>${escapeHtml(video.title || 'Untitled Video')}</h3>
                 <span class="meta">${sortedNotes.length} note${sortedNotes.length !== 1 ? 's' : ''} • ${video.provider || 'Video'}</span>
               </div>
+              <button class="collapse-group-btn" title="Toggle Notes">
+                <svg class="chevron-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="18 15 12 9 6 15"></polyline>
+                </svg>
+              </button>
             </div>
             <div class="video-notes-list">
               ${sortedNotes.map(note => createNoteCard(note, true)).join('')}
@@ -469,6 +474,14 @@ function createNoteCard(note, compact = false) {
  * Attach event listeners to note cards
  */
 function attachNoteCardListeners() {
+    // Collapse group by clicking header
+    document.querySelectorAll('.video-group-header').forEach(header => {
+        header.addEventListener('click', () => {
+            const group = header.closest('.video-group');
+            group.classList.toggle('collapsed');
+        });
+    });
+
     // Timestamp badge clicks
     document.querySelectorAll('.timestamp-badge').forEach(btn => {
         btn.addEventListener('click', (e) => {
