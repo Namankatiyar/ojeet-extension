@@ -19,7 +19,7 @@
 ### From Source (Developer Mode)
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/ojeet-extension.git
+   git clone https://github.com/Namankatiyar/ojeet-extension.git
    ```
 2. Open Google Chrome and navigate to `chrome://extensions`.
 3. Enable **Developer Mode** in the top-right corner.
